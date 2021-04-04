@@ -9,3 +9,9 @@ if [ $(uname) == Linux ]; then
     xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24' python core_display_pyside2_unittest.py
     xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24' python core_display_wx_unittest.py
 fi
+
+if [ $(uname) == Darwin ]; then
+    python core_display_pyqt5_unittest.py
+    python core_display_pyside2_unittest.py
+    python core_display_wx_unittest.py
+fi
