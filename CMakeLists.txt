@@ -154,33 +154,31 @@ if(DEFINED OCCT_INCLUDE_DIR)
   endif(NOT DEFINED OCCT_LIBRARY_DIR)
   set(OCCT_INCLUDE_DIR ${OCCT_INCLUDE_DIR} CACHE PATH "OCCT include directory")
   set(OCCT_LIBRARY_DIR ${OCCT_LIBRARY_DIR} CACHE PATH "OCCT binary directory")
-  include_directories(${OCCT_INCLUDE_DIR})
-  link_directories(${OCCT_LIBRARY_DIR})
-# if OCCT_INCLUDE_DIR is not passed at command line, try to find OCCT automatically
 else(OCCT_INCLUDE_DIR)
-  find_package(OCCT ${OCCT_VERSION_MAJOR}.${OCCT_VERSION_MINOR}.${OCCT_VERSION_PATCH} REQUIRED)
+  # if OCCT_INCLUDE_DIR is not passed at command line, try to find OCCT automatically
+  find_package(OpenCASCADE ${OCCT_VERSION_MAJOR}.${OCCT_VERSION_MINOR}.${OCCT_VERSION_PATCH} REQUIRED)
   if(OpenCASCADE_FOUND)
-    message(STATUS "OpenCASCADE version found: " ${OCCT_MAJOR_VERSION} "." ${OCCT_MINOR_VERSION} "." ${OCCT_MAINTENANCE_VERSION})
-    message(STATUS "OpenCASCADE include directory: " ${OCCT_INCLUDE_DIR})
-    message(STATUS "OpenCASCADE binary directory: " ${OCCT_LIBRARY_DIR})
-    include_directories(${OCCT_INCLUDE_DIR})
+    message(STATUS "OCCT version found: " ${OpenCASCADE_MAJOR_VERSION} "." ${OpenCASCADE_MINOR_VERSION} "." ${OpenCASCADE_MAINTENANCE_VERSION})
+    message(STATUS "OCCT include directory: " ${OpenCASCADE_INCLUDE_DIR})
+    message(STATUS "OCCT library directory: " ${OpenCASCADE_LIBRARY_DIR})
+    include_directories(${OpenCASCADE_INCLUDE_DIR})
   else(OpenCASCADE_FOUND)  # set default paths
-    message(STATUS "OCCT " ${OCCT_VERSION_MAJOR} "." ${OCCT_VERSION_MINOR} "." ${OCCT_VERSION_PATCH} " not found, please set OCCT_INCLUDE_DIR and OCCT_LIBRARY_DIR")
-    set(OCCT_INCLUDE_DIR /usr/local/include/opencascade CACHE PATH "OCCT include directory")
-    set(OCCT_LIBRARY_DIR /usr/local/lib CACHE PATH "OCCT binary directory")
-    include_directories(${OCCT_INCLUDE_DIR})
-    link_directories(${OCCT_LIBRARY_DIR})
+    set(OCCT_INCLUDE_DIR /usr/local/include/oce CACHE PATH "OCCT include path")
+    set(OCCT_LIBRARY_DIR /usr/local/lib CACHE PATH "OCCT lib path")
   endif(OpenCASCADE_FOUND)
 endif(DEFINED OCCT_INCLUDE_DIR)
 
 # After the OCC paths are properly set up, check an header and a lib are actually found
-find_file(OCCT_GP_PNT_HEADER "gp_Pnt.hxx" PATHS ${OCCT_INCLUDE_DIR} REQUIRED)
+find_file(OCCT_GP_PNT_HEADER "gp_Pnt.hxx" PATHS ${OpenCASCADE_INCLUDE_DIR} ${OCCT_INCLUDE_DIR} REQUIRED)
 if(WIN32)
     set(TKKERNEL_LIB_NAME "TKernel.dll")
 else(WIN32)
     set(TKKERNEL_LIB_NAME "libTKernel.so")
 endif(WIN32)
-find_file(OCCT_TKERNEL_LIBRARY ${TKKERNEL_LIB_NAME} PATHS ${OCCT_LIBRARY_DIR} REQUIRED)
+find_file(OCCT_TKERNEL_LIBRARY ${TKKERNEL_LIB_NAME} PATHS ${OCCT_LIBRARY_DIR} ${OpenCASCADE_LIBRARY_DIR} REQUIRED)
+
+include_directories(${OCCT_INCLUDE_DIR})
+link_directories(${OCCT_LIBRARY_DIR})
 
 #############################################
 # List of OCCT shared libraries to link with #
