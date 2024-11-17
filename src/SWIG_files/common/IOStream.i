@@ -22,54 +22,63 @@ along with pythonOCC.  If not, see <http://www.gnu.org/licenses/>.
 %include <python/std_iostream.i>
 %include <python/std_string.i>
 
-// Standard_IStream
+// Typemaps for std::istream&
 %typemap(in) std::istream& {
-  PyObject* temp_bytes = PyUnicode_AsEncodedString($input, "UTF-8", "strict");
-  std::string data(PyBytes_AsString(temp_bytes));
-  std::stringstream* ss = new std::stringstream(data);
-  $1 = ss;
+    if (!PyUnicode_Check($input)) {
+        PyErr_SetString(PyExc_TypeError, "Input must be a string");
+        return NULL;
+    }
+    PyObject* temp_bytes = PyUnicode_AsEncodedString($input, "UTF-8", "strict");
+    if (!temp_bytes) return NULL;
+    std::string data(PyBytes_AsString(temp_bytes));
+    Py_DECREF(temp_bytes);
+    $1 = new std::istringstream(data);
 }
 
 %typemap(freearg) std::istream& {
-  delete $1;
+    delete $1;
 }
 
-// Standard_SStream
-%typemap(in) std::stringstream & {
-  PyObject* temp_bytes = PyUnicode_AsEncodedString($input, "UTF-8", "strict");
-  std::string data(PyBytes_AsString(temp_bytes));
-  std::stringstream* ss = new std::stringstream(data);
-  $1 = ss;
+// Typemaps for std::stringstream&
+%typemap(in) std::stringstream& {
+    if (!PyUnicode_Check($input)) {
+        PyErr_SetString(PyExc_TypeError, "Input must be a string");
+        return NULL;
+    }
+    PyObject* temp_bytes = PyUnicode_AsEncodedString($input, "UTF-8", "strict");
+    if (!temp_bytes) return NULL;
+    std::string data(PyBytes_AsString(temp_bytes));
+    Py_DECREF(temp_bytes);
+    $1 = new std::stringstream(data);
 }
 
-%typemap(freearg) std::stringstream & {
-  delete $1;
+%typemap(freearg) std::stringstream& {
+    delete $1;
 }
 
-%typemap(argout) std::ostream &OutValue {
-    PyObject *o, *o2, *o3;
-    
-    std::string str = ((std::stringstream*)$1)->str();
-    o = PyUnicode_FromString(str.c_str());
-    
-    if ((!$result) || ($result == Py_None)) {
-        $result = o;
+// Typemap for std::ostream&
+%typemap(argout) std::ostream& OutValue {
+    std::ostringstream* oss = dynamic_cast<std::ostringstream*>(&$1);
+    if (!oss) {
+        PyErr_SetString(PyExc_RuntimeError, "argout typemap expects std::ostringstream");
+        return;
+    }
+    PyObject* py_str = PyUnicode_FromString(oss->str().c_str());
+    if (!py_str) return;
+
+    if (!$result || $result == Py_None) {
+        $result = py_str;
     } else {
         if (!PyTuple_Check($result)) {
-            PyObject *o2 = $result;
+            PyObject* old_result = $result;
             $result = PyTuple_New(1);
-            PyTuple_SetItem($result,0,o2);
+            PyTuple_SetItem($result, 0, old_result);
         }
-        o3 = PyTuple_New(1);
-        PyTuple_SetItem(o3,0,o);
-        o2 = $result;
-        $result = PySequence_Concat(o2,o3);
-        Py_DECREF(o2);
-        Py_DECREF(o3);
+        PyTuple_SetItem($result, PyTuple_Size($result), py_str);
     }
 }
 
-%typemap(in, numinputs=0) std::ostream &OutValue (std::stringstream temp) {
-    $1 = &temp;
+// Typemap for std::ostream& with default output
+%typemap(in, numinputs=0) std::ostream& OutValue (std::ostringstream temp) {
+    $1 = temp;
 }
-
