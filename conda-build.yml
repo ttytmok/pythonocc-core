@@ -62,7 +62,7 @@ jobs:
       env:
         CXX: "cl.exe"
 
-  - bash: conda create --yes --quiet --name build_env conda-build conda-verify libarchive python=${{ parameters.py_maj }}.${{ parameters.py_min }} anaconda-client
+  - bash: conda create --yes --quiet --name build_env pip wheel conda-build conda-verify libarchive python=${{ parameters.py_maj }}.${{ parameters.py_min }} anaconda-client
     displayName: 'Create Anaconda environment'
     
   - bash: |
@@ -75,3 +75,26 @@ jobs:
       PYTHON_VERSION: ${{ parameters.py_maj }}.${{ parameters.py_min }}
       PACKAGE_VERSION: $(Build.SourceBranchName)
       TOKEN: $(anaconda.TOKEN)
+
+  # Convert conda package to wheel
+  - ${{ if contains(parameters.vmImage, 'windows') }}:
+    - script: |
+        call activate build_env
+        mkdir wheels
+        python -m wheel convert %CONDA_PKG% -d wheels/
+      displayName: 'Convert conda package to wheel'
+      failOnStderr: false
+
+  - ${{ if not(contains(parameters.vmImage, 'windows')) }}:
+    - bash: |
+        source activate build_env && \
+        mkdir -p wheels && \
+        python -m wheel convert "$CONDA_PKG" -d wheels/
+      displayName: 'Convert conda package to wheel'
+      failOnStderr: false
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: 'wheels'
+      artifactName: 'wheels'
+    displayName: 'Publish wheels'
