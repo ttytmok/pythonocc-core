@@ -22,7 +22,6 @@ project(pythonocc-core)
 # OpenCASCADEの基本パス設定
 set(OCCT_ROOT "C:/OpenCASCADE-7.9.0" CACHE PATH "OpenCASCADE root directory")
 get_filename_component(OCCT_ROOT "${OCCT_ROOT}" ABSOLUTE)
-set(OpenCASCADE_DIR "${OCCT_ROOT}/occt-vc144-64/cmake" CACHE PATH "OpenCASCADE CMake directory")
 
 # サードパーティライブラリのパス
 set(THIRD_PARTY_DIR "${OCCT_ROOT}/3rdparty-vc14-64" CACHE PATH "Third party libraries directory")
@@ -32,14 +31,43 @@ if(MSVC)
     # プロジェクト設定
     set(CMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE "x64")
     
-    # スタートアッププロジェクトの設定
-    add_library(pythonocc-core INTERFACE)
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
-                PROPERTY VS_STARTUP_PROJECT "Tesselator")
-
-    # リンカー設定
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    # サードパーティライブラリのパスを確認
+    set(_lib_paths
+        "${THIRD_PARTY_DIR}/jemalloc-vc14-64/lib/jemalloc.lib"
+        "${THIRD_PARTY_DIR}/draco-vc14-64/lib/draco.lib"
+        "${THIRD_PARTY_DIR}/tbb-2021.13.0-x64/lib/tbb12.lib"
+    )
+    
+    # 存在するライブラリのみリンク
+    foreach(_lib ${_lib_paths})
+        if(EXISTS "${_lib}")
+            message(STATUS "Found library: ${_lib}")
+            list(APPEND ADDITIONAL_LIBS "${_lib}")
+        else()
+            message(WARNING "Library not found: ${_lib}")
+        endif()
+    endforeach()
+    
+    # リンカー設定の関数
+    function(setup_target_libs target)
+        if(TARGET ${target})
+            # リンカーフラグを設定
+            foreach(_lib ${ADDITIONAL_LIBS})
+                target_link_libraries(${target} PRIVATE "${_lib}")
+            endforeach()
+            
+            # インクルードパスを設定
+            target_include_directories(${target} PRIVATE 
+                "${OCCT_ROOT}/occt-vc144-64/inc"
+                "${THIRD_PARTY_DIR}/include"
+            )
+        endif()
+    endfunction()
+    
+    # swig_add_libraryのフック
+    macro(post_swig_target_setup target)
+        setup_target_libs(${target})
+    endmacro()
 endif()
 
 # ライブラリパスの設定と修正関数
@@ -434,20 +462,6 @@ set(CMAKE_SWIG_OUTDIR ${LIBRARY_OUTPUT_PATH})
 ##################
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SWIG_FILES_PATH})
 set(CMAKE_SWIG_FLAGS ${CMAKE_SWIG_FLAGS} "-I${THIRD_PARTY_DIR}/include")
-set(OCCT_TOOLKIT_MODEL
-    FSD
-    Message
-    NCollection
-    OSD
-    Plugin
-    Quantity
-    Resource
-    Standard
-    StdFail
-    Storage
-    TColStd      # ← ここにTColStdが含まれているか確認
-    # ...他のモジュール...
-)
 foreach(OCCT_MODULE ${OCCT_TOOLKIT_MODEL})
     set(FILE ${SWIG_FILES_PATH}/${OCCT_MODULE}.i)
     set_source_files_properties(${FILE} PROPERTIES CPLUSPLUS ON)
